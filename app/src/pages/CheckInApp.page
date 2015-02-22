@@ -1,0 +1,417 @@
+<apex:page docType="html-5.0"
+                       showHeader="false" sidebar="false" controller="CheckInAppController" standardStylesheets="false">
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <apex:stylesheet value="{!URLFOR($Resource.CheckinAppBundle,'CheckinAppBundle/jquery.mobile.flatui.min.css')}"/>
+            <apex:stylesheet value="{!URLFOR($Resource.CheckinAppBundle,'CheckinAppBundle/checkin.app.css')}"/>
+            <apex:includeScript value="{!URLFOR($Resource.CheckinAppBundle, 'CheckinAppBundle/jquery-1.9.1.min.js')}"/>
+            <apex:includeScript value="{!URLFOR($Resource.CheckinAppBundle, 'CheckinAppBundle/jquery.mobile-1.3.0.min.js')}"/>
+            <apex:includeScript value="{!URLFOR($Resource.CheckinAppBundle, 'CheckinAppBundle/html5-qrcode.min.js')}"/>
+            <script>    
+            var $j = jQuery.noConflict();
+
+            $j(document).ready(function(){
+            });
+            
+            $j(document).on("pagebeforeshow", "#OfferingList", function () {
+                clearlocalStorage();
+                showOfferings();
+            });
+
+            $j(document).on("pagebeforeshow", "#OfferingScan", function () {
+                showOfferingScanCard();
+                startScanning(showMemberInfo, createAttendanceRecord);
+            });
+
+            $j(document).on("pagebeforeshow", "#CheckinScan", function () {
+                showCheckinScanCard();
+                startScanning(showMemberInfo, showCheckInOptions);
+            });
+
+            function showOfferings(){
+                clearlocalStorage();
+                CheckInAppController.getOfferings(function(results, event) {
+                    console.log(results);
+                        if (event.status) {
+                             loadOfferings(results);
+                        } else {
+                           showException(event.message);
+                        }
+                    });
+                return false;
+            }
+
+            function loadOfferings(results){   
+                $j("#offering-ulist").html("");
+                var records = results;
+                $j.each(records, function(i, offering) {
+                    console.log(offering);
+                    var offeringInfo = '<li><a  data-transition="slide">';
+                    offeringInfo += '<h2>' + offering.Name +  '</h2>';
+                    if(offering.Instructor__r !== undefined){
+                      offeringInfo += '<p>Instructor: ' + offering.Instructor__r.Name + '</p>';  
+                    }
+                    offeringInfo += '<p>Type: ' + offering.Offering_Subtype_c__c + '</p></a></li>';
+                    var newLi = $j(offeringInfo);
+                    newLi.click(function(e){
+                        e.preventDefault();
+                        if(typeof(Storage)!=="undefined") {
+                          localStorage.OfferingId=offering.Id;
+                          localStorage.OfferingName=offering.Name;
+                          if(offering.Instructor__r !== undefined){
+                            localStorage.OfferingInstructor=offering.Instructor__r.Name;
+                          }
+                          localStorage.OfferingSubtype=offering.Offering_Subtype_c__c       
+                        }
+                    $j.mobile.changePage("#OfferingScan");
+                    });
+                   $j("#offering-ulist").append(newLi);
+                });
+                $j("#offering-ulist").listview("refresh");
+                return false;
+            }
+
+            function clearlocalStorage(){
+                localStorage.OfferingId='';
+                localStorage.OfferingName='';
+                localStorage.OfferingInstructor='';
+                localStorage.OfferingSubtype='';
+                localStorage.MemberId='';
+                return false;
+            }
+
+            function startScanning(callback, callOps){
+                $j('#reader').html5_qrcode(function(data){
+                                    callback(data, callOps);
+                                    data = null;
+                                    callback = null;
+                                    callOps = null;
+                                },
+                    function(error){
+                        $j('#read').empty();
+                        $j('#read_error').html(error);
+                    }, function(videoError){
+                        $j('#vid_error').html(videoError);
+                    }
+                );
+                return false;
+            }
+
+            function showMemberInfo(data, callback){
+                var memberId = data;
+                if(memberId !== undefined ){
+                    CheckInAppController.getMemberDetails(memberId,
+                            function(results, event) {
+                                if (event.status) {
+                                    console.log(results);
+                                    callback(results);
+                                } else {
+                                   showException(event.message);
+                                }
+                            });
+                }
+                return false;
+            }
+
+            // function to create offering attendance and show the appropriate display
+            function createAttendanceRecord(data){
+                console.log('attendanceRecord');
+                console.log(data);
+
+                CheckInAppController.memberOfferingCheckIn(data.Id,
+                                    localStorage.OfferingId,
+                                    localStorage.OfferingSubtype,
+                                    function(result, event) {
+                                        console.log(result);
+                                        if (event.status) {
+                                            showResultCard(data, result);
+                                        } else {
+                                            showException(event.message);
+                                        }
+                                    }); 
+
+                return false;
+            }
+
+            // function to create checkin record and shows the appropriate display.
+            function showCheckInOptions(data){
+                showResultCard(data);
+                $j('#choicebutton').html('');
+                var checkIn = '<a href="index.html" data-role="button" data-inline="true" data-theme="f" data-corners="false">Check-In</a>';
+                var checkOut= '<a href="index.html" data-role="button" data-inline="true" data-theme="f" data-corners="false">Check-Out</a>';
+
+                var checkInButton = $j(checkIn);
+                    checkInButton.click(function(e){
+                        e.preventDefault();
+                        createCheckInRecord(data);
+                    }
+                );
+
+                var checkOutButton = $j(checkOut);
+                    checkOutButton.click(function(e){
+                        e.preventDefault();
+                        createCheckOutRecord(data);
+                    }
+                );
+
+                $j('#choicebutton').append(checkInButton).trigger("create");
+                $j('#choicebutton').append(checkOutButton).trigger("create");
+                return false;
+            }
+
+            // function to create checkin record and shows the appropriate display.
+            function createCheckInRecord(data){
+
+                CheckInAppController.memberCheckIn(data.Id,
+                                function(result, event) {
+                                    console.log(result);
+                                    if (event.status) {
+                                        showResultCard(data, result);
+                                    } else {
+                                        showException(event.message);
+                                    }
+                                });
+                return false;
+            }
+
+            // function to create checkin record and shows the appropriate display.
+            function createCheckOutRecord(data){
+                CheckInAppController.memberCheckOut(data.Id,
+                                function(result, event) {
+                                console.log(result);
+                                    if (event.status) {
+                                        showResultCard(data, result);
+                                    } else {
+                                        showException(event.message);
+                                    }
+                                });
+                return false;
+            }
+                 
+            function showOfferingScanCard(){
+                $j("#offeringbody").empty();
+                $j("#checkinbody").empty();
+                var offeringContent = '<div class="card" id="ScannerCard">';
+                offeringContent += '<div id="offeringName"><h1>' + localStorage.OfferingName + '</h1></div>';
+                offeringContent += '<div id="offeringInstructure"><h5>By Instructor: ' + localStorage.OfferingInstructor + '</h5></div>';
+                offeringContent += '<div id="offeringScanner"></div></div>';
+                $j("#offeringbody").append(offeringContent);
+                $j('#offeringScanner').append(getScannerSnippet());
+            }
+
+            function showCheckinScanCard(){
+                $j("#offeringbody").empty();
+                $j("#checkinbody").empty();
+                var content = '<div class="card" id="ScannerCard">';
+                content += '<div><h1>Check In / Check Out</h1></div>';
+                content += '<div id="checkinScanner"></div></div>';
+                $j("#checkinbody").append(content);
+                $j('#checkinScanner').append(getScannerSnippet());
+            }
+              
+            function showResultCard(record, response){
+                $j.mobile.changePage("#ScanResult");
+                $j('#ScanResultbody').empty();
+                var content = '<div class="card"><div class="card-image">';
+
+                if(record === undefined || record === null){
+                    content += '<div class="card-banner-failure"><h3> Invalid member Id in QR Code</h3></div>';
+                    content += '<div id="choicebutton">'
+                    content += '<a data-rel="back" data-role="button" data-inline="true" data-theme="f" data-corners="false">Scan Another</a>';
+                    content += '</div></div></div>';
+                    $j("#ScanResultbody").append(content).trigger("create");
+                    return;
+                }
+
+                if(record.MKP002__Photo_Id__c !== undefined){
+                    content += '<img height="300" width="300" src="/servlet/servlet.FileDownload?file=' + record.MKP002__Photo_Id__c + '"/>';
+                } else {
+                    content += '<img height="300" width="300" src="{!URLFOR($Resource.CheckinAppBundle, 'CheckinAppBundle/images/noImage.png')}"/>';
+                }
+                content += '</div>';
+                if(response !== undefined) {
+                    console.log('message:' + response.message + 'status:' + response.status);
+                    if(response.status === true){
+                        content += '<div class="card-banner-success"><h3>' + response.message + '</h3></div>'; 
+                    } else if(response.status === false) {
+                        content += '<div class="card-banner-failure"><h3>' + response.message + '</h3></div>'; 
+                    }
+                }
+                content += '<div class="memberInfo"><h3>' + record.FirstName + ' ' + record.LastName + '</h3>';
+                content += '<h3>' + record.Member_ID__c + '</h3>';
+                content += '<h3>' + record.Pro_Kids_Level__c + '</h3><div id="choicebutton">';
+                if(response !== undefined) {
+                    content += '<a data-rel="back" data-role="button" data-inline="true" data-theme="f" data-corners="false">Scan Next</a>';
+                }
+                content += '</div></div></div>';
+                $j("#ScanResultbody").append(content).trigger("create");
+
+            }
+
+            function getScannerSnippet(){
+                var scanSnippet = '<div class="card-video" id="reader" style="width:300px;height:250px;"></div>';
+                scanSnippet += '<div id="read"> </div>';
+                scanSnippet += '<img id="read_error" src="{!URLFOR($Resource.CheckinAppBundle,"CheckinAppBundle/images/ajax-bar-loader.gif")}" style="width:300px;" />';
+                scanSnippet += '<div id="vid_error"> </div>';
+                return scanSnippet; 
+            }
+
+            function showException(message){
+                $j.mobile.changePage("#ScanResult");
+                $j('#ScanResultbody').empty();
+                var content = '<div class="card"><div class="card-image">';
+                content += '<div class="card-banner-failure"><h3>' + message + '</h3></div>';
+                content += '<div id="choicebutton">'
+                content += '<a data-rel="back" data-role="button" data-inline="true" data-theme="f" data-corners="false">click here to go back</a>';
+                content += '</div></div></div>';
+                $j("#ScanResultbody").append(content).trigger("create");
+                return;
+            }
+
+        </script>
+
+        </head>
+                <body>
+
+                    <!-- ***** Checkin Home **** -->
+                    <div data-role="page" id="CheckinHome">
+                        <header data-role="header" data-theme="b">
+                            <h1>Checkin App</h1>
+                        </header>
+                        <article data-role="content" data-theme="f">
+                            <div id="body">
+                                <br/><br/>
+                                <div>
+                                    <img class="image" height="180" width="280" src="{!URLFOR($Resource.CheckinAppBundle, 'CheckinAppBundle/images/PKLogo.png')}"/>
+                                </div>
+                                <br/><br/>
+                                <a href="#CheckinScan" id="checkinbtn" data-role="button" data-theme="f" data-corners="false" data-shadow="false">Checkin / Checkout</a>
+                                <a href="#OfferingList" id="offerings" data-role="button" data-theme="f" data-corners="false" data-shadow="false">Offering Attendance</a>
+                            </div>
+                        </article>
+                        <footer data-role="footer" data-position="fixed" data-theme="b">
+                            <nav data-role="navbar">
+                                <ul>
+                                    <li>
+                                        <a href="#CheckinHome" data-role="button" data-icon="flat-cmd" data-iconpos="notext" data-theme="b" data-inline="true">Home</a>
+                                    </li>
+                                    <li>
+                                        <a href="#CheckinScan" data-role="button" data-icon="flat-checkround" data-iconpos="notext" data-theme="b" data-inline="true">Checkin</a>
+                                    </li>
+                                    <li>
+                                        <a href="#OfferingList" data-role="button" data-icon="flat-location" data-iconpos="notext" data-theme="b" data-inline="true">Offerings</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </footer>
+                    </div>
+
+                    <!-- ******* Offering List Page ******* -->
+                    <div data-role="page" id="OfferingList">
+                        <header data-role="header" data-theme="b">
+                            <h1>Checkin App</h1>
+                        </header>
+                        <article data-role="content" data-theme="a">
+                            <div id="body">
+                                <ul data-role="listview" data-inset="true" data-filter="true" id="offering-ulist" class="offering" data-theme="c"></ul>
+                            </div>
+                        </article>
+                        <footer data-role="footer" data-position="fixed" data-theme="b">
+                            <nav data-role="navbar">
+                                <ul>
+                                    <li>
+                                        <a href="#CheckinHome" data-role="button" data-icon="flat-cmd" data-iconpos="notext" data-theme="b" data-inline="true">Home</a>
+                                    </li>
+                                    <li>
+                                        <a href="#CheckinScan" data-role="button" data-icon="flat-checkround" data-iconpos="notext" data-theme="b" data-inline="true">Checkin</a>
+                                    </li>
+                                    <li>
+                                        <a href="#OfferingList" data-role="button" data-icon="flat-location" data-iconpos="notext" data-theme="b" data-inline="true">Offerings</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </footer>
+                    </div>
+
+                    <!-- ******* Offering Scan Page ******* -->
+
+                    <div data-role="page" id="OfferingScan">
+                        <header data-role="header" data-theme="b">
+                            <h1>Checkin App</h1>
+                        </header>
+                        <article data-role="content" data-theme="f">
+                            <div id="offeringbody">
+                            </div>
+                        </article>
+                        <footer data-role="footer" data-position="fixed" data-theme="b">
+                            <nav data-role="navbar">
+                                <ul>    
+                                    <li>
+                                        <a href="#CheckinHome" data-ajax="false" data-role="button" data-icon="flat-cmd" data-iconpos="notext" data-theme="b" data-inline="true">Home</a>
+                                    </li>
+                                    <li>
+                                        <a href="#CheckinScan" data-role="button" data-icon="flat-checkround" data-iconpos="notext" data-theme="b" data-inline="true">Checkin</a>
+                                    </li>
+                                    <li>
+                                        <a href="#OfferingList" data-role="button" data-icon="flat-location" data-iconpos="notext" data-theme="b" data-inline="true">Offerings</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </footer>
+                    </div>
+
+                    <!-- ******* Checkin Checkout Scan Page ******* -->
+
+                    <div data-role="page" id="CheckinScan">
+                        <header data-role="header" data-theme="b">
+                            <h1>Checkin App</h1>
+                        </header>
+                        <article data-role="content" data-theme="f">
+                            <div id="checkinbody">
+                            </div>
+                        </article>
+                        <footer data-role="footer" data-position="fixed" data-theme="b">
+                            <nav data-role="navbar">
+                                <ul>
+                                    <li>
+                                        <a href="#CheckinHome" data-ajax="false" data-role="button" data-icon="flat-cmd" data-iconpos="notext" data-theme="b" data-inline="true">Home</a>
+                                    </li>
+                                    <li>
+                                        <a href="#CheckinScan" data-role="button" data-icon="flat-checkround" data-iconpos="notext" data-theme="b" data-inline="true">Checkin</a>
+                                    </li>
+                                    <li>
+                                        <a href="#OfferingList" data-role="button" data-icon="flat-location" data-iconpos="notext" data-theme="b" data-inline="true">Offerings</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </footer>
+                    </div>
+
+                    <!-- ******* Scan Result Page ******* -->
+
+                    <div data-role="page" id="ScanResult">
+                        <header data-role="header" data-theme="b">
+                            <h1>Checkin App</h1>
+                        </header>
+                        <article data-role="content" data-theme="f">
+                            <div id="ScanResultbody">
+                            </div>
+                        </article>
+                        <footer data-role="footer" data-position="fixed" data-theme="b">
+                            <nav data-role="navbar">
+                                <ul>
+                                    <li>
+                                        <a href="#CheckinHome" data-ajax="false" data-role="button" data-icon="flat-cmd" data-iconpos="notext" data-theme="b" data-inline="true">Home</a>
+                                    </li>
+                                    <li>
+                                        <a href="#CheckinScan" data-role="button" data-icon="flat-checkround" data-iconpos="notext" data-theme="b" data-inline="true">Checkin</a>
+                                    </li>
+                                    <li>
+                                        <a href="#OfferingList" data-role="button" data-icon="flat-location" data-iconpos="notext" data-theme="b" data-inline="true">Offerings</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </footer>
+                    </div>
+                </body>
+            </apex:page>

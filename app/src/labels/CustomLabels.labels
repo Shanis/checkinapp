@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">
+    <labels>
+        <fullName>CheckinApp_attendance_failure</fullName>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Error Message when failed to create attendance</shortDescription>
+        <value>Failed to create attendance</value>
+    </labels>
+    <labels>
+        <fullName>CheckinApp_attendance_hasAttendance</fullName>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Error Message when member already has an attendance</shortDescription>
+        <value>Attendance already exists</value>
+    </labels>
+    <labels>
+        <fullName>CheckinApp_attendance_notCheckedIn</fullName>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Error message when member scanned for offering without checking in.</shortDescription>
+        <value>Member not Checked In</value>
+    </labels>
+    <labels>
+        <fullName>CheckinApp_attendance_success</fullName>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Success message for member offering attendance creation</shortDescription>
+        <value>Attendance created Successfully</value>
+    </labels>
+    <labels>
+        <fullName>CheckinApp_checkin_alreadyCheckedIn</fullName>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Error message when member already checked in and try to check in again</shortDescription>
+        <value>Already Checked in</value>
+    </labels>
+    <labels>
+        <fullName>CheckinApp_checkin_failed</fullName>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Error message when failed to create check in record</shortDescription>
+        <value>Check-in Failed</value>
+    </labels>
+    <labels>
+        <fullName>CheckinApp_checkin_recordNotFound</fullName>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Error message when try to checkout without checking in</shortDescription>
+        <value>Check-in Record not found</value>
+    </labels>
+    <labels>
+        <fullName>CheckinApp_checkin_success</fullName>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Check-in success message</shortDescription>
+        <value>Check-in Successfull</value>
+    </labels>
+    <labels>
+        <fullName>CheckinApp_checkout_failed</fullName>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Error message when failed to checkout</shortDescription>
+        <value>Check-out Failed</value>
+    </labels>
+    <labels>
+        <fullName>CheckinApp_checkout_success</fullName>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Check out success message</shortDescription>
+        <value>Check-out Successful</value>
+    </labels>
+</CustomLabels>
